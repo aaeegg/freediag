@@ -475,6 +475,7 @@ elm_open(struct diag_l0_device *dl0d, int iProtocol)
 			rv=1;
 		} else {
 			// Has ATPPS, but might be STN1100 or other clone
+			printf("Note : probing for STN1100. Error from official ELM is expected.\n");
 			buf=(uint8_t *)"STI\x0D";
 			if (!elm_sendcmd(dl0d, buf, 4, 500, NULL)) {
 				// Responds to STI, must be STN1100
