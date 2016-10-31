@@ -331,9 +331,11 @@ elm_sendcmd(struct diag_l0_device *dl0d, const uint8_t *data, size_t len, unsign
 	}
 
 	//check if we either 1)got a positive response "OK"
-	//2)were sending ATZ (special case hack, it doesn't answer "OK")
+	//2)were sending ATZ, ATPPS or STI (special case hack, it doesn't answer "OK")
 	if ((strstr((char *)buf, "OK") != NULL) ||
-		(strstr((char *)data, "ATZ") != NULL)) {
+		(strstr((char *)data, "ATZ") != NULL) ||
+		(strstr((char *)data, "ATPPS") != NULL) ||
+		(strstr((char *)data, "STI") != NULL)) {
 		return 0;
 	}
 
@@ -461,6 +463,25 @@ elm_open(struct diag_l0_device *dl0d, int iProtocol)
 			dev->elmflags |= ELM_32x_CLONE;
 			rv=1;
 			break;
+		}
+	}
+	if (rv==0 && !strstr((char *)rxbuf, "1.0")) {
+		// Official ELM 1.0 and 1.0a don't have the ATPPS command.
+		buf=(uint8_t *)"ATPPS\x0D";
+		if (elm_sendcmd(dl0d, buf, 6, 1000, NULL)) {
+			// Missing ATPPS command, but claims to be v >1.0a - it's a clone.
+			printf("Clone ELM found. Expect inferior performance\n");
+			dev->elmflags |= ELM_32x_CLONE;
+			rv=1;
+		} else {
+			// Has ATPPS, but might be STN1100 or other clone
+			buf=(uint8_t *)"STI\x0D";
+			if (!elm_sendcmd(dl0d, buf, 4, 500, NULL)) {
+				// Responds to STI, must be STN1100
+				printf("STN1100 found\n");
+				rv=1;
+				// STN1100 supports ATFI/ATSI, so don't set ELM_32x_CLONE
+			}
 		}
 	}
 
